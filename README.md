@@ -10,38 +10,47 @@ body {
   background: #f4f4f4;
   padding: 20px;
 }
+
 h2 {
   background: #222;
   color: #fff;
   padding: 10px;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
   margin-bottom: 20px;
 }
+
 th, td {
   border: 1px solid #ccc;
   padding: 8px;
   text-align: center;
 }
-input {
+
+input, select {
   padding: 6px;
-  width: 95%;
   margin-bottom: 6px;
 }
+
 button {
-  padding: 8px 12px;
+  padding: 6px 12px;
   cursor: pointer;
   margin-bottom: 10px;
 }
-.disponivel {
-  background: #c8f7c5;
-}
-.esgotado {
-  background: #f7c5c5;
-  font-weight: bold;
+
+.disponivel { background: #c8f7c5; }
+.esgotado { background: #f7c5c5; font-weight: bold; }
+
+.periodo {
+  background: #fff;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 </style>
 </head>
@@ -57,23 +66,19 @@ button {
 
 <h2>Estoque</h2>
 
-<!-- 🔎 Pesquisa no estoque -->
 <input
   id="pesquisaEstoque"
   placeholder="Pesquisar produto no estoque..."
   onkeyup="atualizarTabela()"
 >
 
-<!-- 🔤 BOTÃO VISÍVEL DE ORDENAÇÃO -->
-<button onclick="ordenarEstoque()">
-  Ordenar estoque A–Z
-</button>
+<button onclick="ordenarEstoque()">Ordenar estoque A–Z</button>
 
 <table id="tabela">
 <tr>
   <th>Produto</th>
   <th>Preço</th>
-  <th>Quantidade</th>
+  <th>Qtd</th>
   <th>Status</th>
   <th>Retirar</th>
   <th>Quem comprou</th>
@@ -83,17 +88,44 @@ button {
 
 <h2>Histórico de Vendas</h2>
 
-<input
-  id="pesquisaComprador"
-  placeholder="Pesquisar comprador..."
-  onkeyup="atualizarHistorico()"
->
+<div class="periodo">
+  <strong>Período:</strong>
+
+  <select id="mes" onchange="atualizarHistorico()">
+    <option value="">Todos</option>
+    <option value="1">Janeiro</option>
+    <option value="2">Fevereiro</option>
+    <option value="3">Março</option>
+    <option value="4">Abril</option>
+    <option value="5">Maio</option>
+    <option value="6">Junho</option>
+    <option value="7">Julho</option>
+    <option value="8">Agosto</option>
+    <option value="9">Setembro</option>
+    <option value="10">Outubro</option>
+    <option value="11">Novembro</option>
+    <option value="12">Dezembro</option>
+  </select>
+
+  <input
+    type="number"
+    id="ano"
+    placeholder="Ano"
+    value="2026"
+    onchange="atualizarHistorico()"
+  >
+
+  <input
+    id="pesquisaComprador"
+    placeholder="Pesquisar comprador..."
+    onkeyup="atualizarHistorico()"
+  >
+</div>
 
 <table id="historico">
 <tr>
   <th>Produto</th>
   <th>Qtd</th>
-  <th>Preço Unit.</th>
   <th>Total</th>
   <th>Comprador</th>
   <th>Data</th>
@@ -131,7 +163,7 @@ function atualizarTabela() {
   estoque.forEach((p, i) => {
     if (!p.nome.toLowerCase().includes(filtro)) return;
 
-    const r = tabela.insertRow(-1);
+    const r = tabela.insertRow();
     r.className = p.qtd > 0 ? "disponivel" : "esgotado";
 
     r.innerHTML = `
@@ -147,7 +179,7 @@ function atualizarTabela() {
         <button onclick="retirar(${i})">Vender</button>
       </td>
       <td>
-        <button onclick="excluir(${i})">Excluir</button>
+        <button onclick="excluirProduto(${i})">Excluir</button>
       </td>
     `;
   });
@@ -155,18 +187,21 @@ function atualizarTabela() {
 
 function atualizarHistorico() {
   const tabela = document.getElementById("historico");
-  const filtro = document.getElementById("pesquisaComprador").value.toLowerCase();
+  const compradorFiltro = document.getElementById("pesquisaComprador").value.toLowerCase();
+  const mes = document.getElementById("mes").value;
+  const ano = document.getElementById("ano").value;
 
   while (tabela.rows.length > 1) tabela.deleteRow(1);
 
   vendas.forEach((v, i) => {
-    if (!v.comprador.toLowerCase().includes(filtro)) return;
+    if (compradorFiltro && !v.comprador.toLowerCase().includes(compradorFiltro)) return;
+    if (mes && v.mes != mes) return;
+    if (ano && v.ano != ano) return;
 
-    const r = tabela.insertRow(-1);
+    const r = tabela.insertRow();
     r.innerHTML = `
       <td>${v.produto}</td>
       <td>${v.qtd}</td>
-      <td>R$ ${v.preco.toFixed(2)}</td>
       <td>R$ ${v.total.toFixed(2)}</td>
       <td>${v.comprador}</td>
       <td>${v.data}</td>
@@ -183,7 +218,7 @@ function adicionarProduto() {
   const preco = Number(precoProduto.value);
 
   if (!nome || qtd <= 0 || preco <= 0) {
-    alert("Preencha todos os campos corretamente");
+    alert("Preencha corretamente");
     return;
   }
 
@@ -198,31 +233,31 @@ function adicionarProduto() {
 }
 
 function retirar(i) {
-  const qtdCampo = document.getElementById("retirar" + i);
-  const compradorCampo = document.getElementById("comprador" + i);
+  const qtd = Number(document.getElementById("retirar" + i).value);
+  const comprador = document.getElementById("comprador" + i).value.trim();
 
-  const valor = Number(qtdCampo.value);
-  const comprador = compradorCampo.value.trim();
-
-  if (valor <= 0 || !comprador) {
+  if (qtd <= 0 || !comprador) {
     alert("Informe quantidade e comprador");
     return;
   }
 
-  if (estoque[i].qtd < valor) {
+  if (estoque[i].qtd < qtd) {
     alert("Quantidade insuficiente");
     return;
   }
 
-  estoque[i].qtd -= valor;
+  estoque[i].qtd -= qtd;
+
+  const data = new Date();
 
   vendas.push({
     produto: estoque[i].nome,
-    qtd: valor,
-    preco: estoque[i].preco,
-    total: estoque[i].preco * valor,
+    qtd,
+    total: estoque[i].preco * qtd,
     comprador,
-    data: new Date().toLocaleString("pt-BR")
+    data: data.toLocaleString("pt-BR"),
+    mes: data.getMonth() + 1,
+    ano: data.getFullYear()
   });
 
   salvar();
@@ -237,7 +272,7 @@ function excluirVenda(i) {
   atualizarHistorico();
 }
 
-function excluir(i) {
+function excluirProduto(i) {
   if (!confirm("Excluir produto?")) return;
   estoque.splice(i, 1);
   salvar();
